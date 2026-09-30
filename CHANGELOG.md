@@ -5,6 +5,16 @@ All notable changes are listed here. Versions follow semantic versioning
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-09-30
+- Hardened `auto-merge.yml` against intermittent `git push origin main`
+  failures (HTTP 403 RPC errors seen on the 0.1.0 and 0.2.0 runs; 0.2.1
+  succeeded, confirming the failure was transient).
+- Added `concurrency` control (`cancel-in-progress: true`) so rapid
+  successive pushes to `dev-001` no longer race two `merge-to-main` jobs
+  against the same `main` ref.
+- Added a 3-attempt retry loop (re-fetch + re-merge + retry) to both push
+  steps to ride through transient RPC failures.
+
 ## [0.2.1] - 2026-09-30
 - Fixed crash in `label_emails` (clear step): `get_gmail_labels` returns a
   dict `{uid: (labels,)}`, but the code iterated the dict itself, passing

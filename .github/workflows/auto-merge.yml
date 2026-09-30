@@ -8,6 +8,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: auto-merge
+  cancel-in-progress: true
+
 jobs:
   merge-to-dev:
     name: dev-001 -> dev
@@ -28,7 +32,19 @@ jobs:
           git fetch origin dev
           git checkout -B dev origin/dev
           git merge origin/dev-001 --no-edit
-          git push origin dev
+          for attempt in 1 2 3; do
+            if git push origin dev; then
+              echo "Pushed dev successfully."
+              exit 0
+            fi
+            echo "Push attempt $attempt failed; re-fetching and retrying in 5s..."
+            sleep 5
+            git fetch origin dev
+            git checkout -B dev origin/dev
+            git merge origin/dev-001 --no-edit
+          done
+          echo "ERROR: failed to push dev after 3 attempts" >&2
+          exit 1
 
   merge-to-main:
     name: dev -> main
@@ -51,4 +67,16 @@ jobs:
           git checkout -B dev origin/dev
           git checkout -B main origin/main
           git merge dev --no-edit
-          git push origin main
+          for attempt in 1 2 3; do
+            if git push origin main; then
+              echo "Pushed main successfully."
+              exit 0
+            fi
+            echo "Push attempt $attempt failed; re-fetching and retrying in 5s..."
+            sleep 5
+            git fetch origin main
+            git checkout -B main origin/main
+            git merge dev --no-edit
+          done
+          echo "ERROR: failed to push main after 3 attempts" >&2
+          exit 1
