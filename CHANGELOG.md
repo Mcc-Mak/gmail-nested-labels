@@ -5,6 +5,11 @@ All notable changes are listed here. Versions follow semantic versioning
 
 ## [Unreleased]
 
+## [0.0.2] - 2026-09-30
+- Fixed SSL error on Python 3.12+: pass `ssl.create_default_context()` to
+  `IMAPClient` instead of relying on imapclient's default (which creates a
+  `PROTOCOL_TLS_SERVER` context, invalid for client connections).
+
 ## [0.0.1] - 2026-09-30
 - Replaced Gmail API (OAuth2) with IMAP + App Password: no Google Cloud
   Console or credit card needed.

@@ -19,6 +19,7 @@ from email import policy
 import json
 import os
 import re
+import ssl
 import sys
 
 from dotenv import load_dotenv
@@ -38,7 +39,7 @@ def connect_imap(user, app_password):
             "ERROR: GMAIL_USER and GMAIL_APP_PASSWORD must be set in .env.\n"
             "See README.md for how to generate an App Password."
         )
-    client = IMAPClient(IMAP_HOST, ssl=True)
+    client = IMAPClient(IMAP_HOST, ssl=True, ssl_context=ssl.create_default_context())
     client.login(user, app_password)
     return client
 
