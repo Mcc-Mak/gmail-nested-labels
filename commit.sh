@@ -7,7 +7,7 @@
 set -euo pipefail
 
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
-if [ "$BRANCH" != "dev-001" ]; then
+if [[ "$BRANCH" != "dev-001" ]]; then
   echo "錯誤：必須在 dev-001 上執行（目前：$BRANCH）。" >&2
   exit 1
 fi
@@ -40,11 +40,11 @@ read -r -p "提交主旨（不含版本前綴）: " COMMIT_SUBJECT
 echo "詳細提交內文（以僅含 'END' 的行結束）:"
 COMMIT_BODY=""
 while IFS= read -r line; do
-  [ "$line" = "END" ] && break
+  [[ "$line" == "END" ]] && break
   COMMIT_BODY="${COMMIT_BODY}${line}"$'\n'
 done
 
-if [ -n "$COMMIT_BODY" ]; then
+if [[ -n "$COMMIT_BODY" ]]; then
   git commit -m "[$VERSION] $COMMIT_SUBJECT" -m "$COMMIT_BODY"
 else
   git commit -m "[$VERSION] $COMMIT_SUBJECT"

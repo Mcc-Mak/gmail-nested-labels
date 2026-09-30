@@ -43,7 +43,10 @@ def connect_imap(user, app_password):
             "錯誤：GMAIL_USER 和 GMAIL_APP_PASSWORD 必須在 .env 中設定。\n"
             "請參閱 README.md 了解如何產生應用程式密碼。"
         )
-    client = IMAPClient(IMAP_HOST, ssl=True, ssl_context=ssl.create_default_context())
+    ssl_context = ssl.create_default_context()
+    ssl_context.check_hostname = True
+    ssl_context.verify_mode = ssl.CERT_REQUIRED
+    client = IMAPClient(IMAP_HOST, ssl=True, ssl_context=ssl_context)
     client.login(user, app_password)
     return client
 
@@ -271,6 +274,11 @@ def thematic_analysis(email_items, model):
     呼叫 `opencode run -m <model> --format json`，郵件資料以檔案附加。
     回傳解析後的 JSON。
     """
+    if not re.fullmatch(r"[A-Za-z0-9._/-]+", model):
+        sys.exit(
+            f"錯誤：無效的模型名稱 {model!r}——僅允許英數字、點、連字號、"
+            f"底線、斜線。"
+        )
     prompt = (
         "Read the attached JSON file. It contains emails with index, sender, "
         "subject, and body fields. Group them by overarching theme. "

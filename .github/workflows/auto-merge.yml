@@ -5,9 +5,6 @@ on:
     branches:
       - dev-001
 
-permissions:
-  contents: write
-
 concurrency:
   group: auto-merge
   cancel-in-progress: true
@@ -16,6 +13,8 @@ jobs:
   merge-to-dev:
     name: dev-001 -> dev
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: 檢出
         uses: actions/checkout@v4
@@ -50,6 +49,8 @@ jobs:
     name: dev -> main
     needs: merge-to-dev
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: 檢出
         uses: actions/checkout@v4
