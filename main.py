@@ -102,7 +102,7 @@ def ensure_label(client, label_name):
     """
     try:
         client.create_folder(label_name)
-        print(f"  已建立標籤：{label_name}")
+        print(f"  🏷️ 已建立標籤：{label_name}")
         return
     except IMAPClientError as exc:
         msg = str(exc).lower()
@@ -113,7 +113,7 @@ def ensure_label(client, label_name):
     slash_name = label_name.replace("-", "/")
     try:
         client.delete_folder(slash_name)
-        print(f"  已刪除舊 '/' 格式標籤：{slash_name}")
+        print(f"  🗑️ 已刪除舊 '/' 格式標籤：{slash_name}")
     except IMAPClientError as exc:
         if "nonexistent" in str(exc).lower() or "unknown" in str(exc).lower():
             return
@@ -176,7 +176,7 @@ def label_emails(client, emails, archive=True):
         from_header = msg["From"] or ""
         domain = extract_domain(from_header)
         if not domain:
-            print(f"  UID {uid}：無法擷取網域，留在收件匣")
+            print(f"  ⚠️ UID {uid}：無法擷取網域，留在收件匣")
             continue
         targets.append((uid, domain_to_label(domain)))
     if not targets:
@@ -197,17 +197,17 @@ def label_emails(client, emails, archive=True):
         by_label.setdefault(label, []).append(uid)
     labeled_uids = []
     for label_name, uids in by_label.items():
-        print(f"  {label_name}：{len(uids)} 封郵件")
+        print(f"  📧 {label_name}：{len(uids)} 封郵件")
         try:
             ensure_label(client, label_name)
         except IMAPClientError as exc:
-            print(f"    建立標籤錯誤：{exc}——跳過")
+            print(f"    ❌ 建立標籤錯誤：{exc}——跳過")
             continue
         try:
             client.add_gmail_labels(uids, [label_name])
             labeled_uids.extend(uids)
         except IMAPClientError as exc:
-            print(f"    標記錯誤：{exc}")
+            print(f"    ❌ 標記錯誤：{exc}")
 
     # 4. 驗證標籤已套用（封存前，郵件仍在 INBOX）。
     after = client.get_gmail_labels(target_uids)
@@ -221,7 +221,7 @@ def label_emails(client, emails, archive=True):
             client.add_flags(labeled_uids, ["\\Deleted"])
             client.expunge(labeled_uids)
         except IMAPClientError as exc:
-            print(f"    封存錯誤：{exc}")
+            print(f"    ❌ 封存錯誤：{exc}")
 
     # 6. 驗證封存結果。
     if archive:
@@ -240,13 +240,13 @@ def label_emails(client, emails, archive=True):
         else:
             failed += 1
             print(
-                f"  UID {uid}：驗證失敗 "
+                f"  ❌ UID {uid}：驗證失敗 "
                 f"（標籤={label!r} 已套用={has_label} 在收件匣={in_inbox}）"
             )
     if archive:
-        print(f"  完成：{ok} 封已封存，{failed} 封失敗，共 {len(targets)} 封目標。")
+        print(f"  📦 完成：{ok} 封已封存，{failed} 封失敗，共 {len(targets)} 封目標。")
     else:
-        print(f"  完成：{ok} 封已標記，{failed} 封失敗，共 {len(targets)} 封目標。")
+        print(f"  ✅ 完成：{ok} 封已標記，{failed} 封失敗，共 {len(targets)} 封目標。")
 
 
 def build_ai_input(emails):
@@ -351,30 +351,30 @@ def main():
     gmail_user = os.getenv("GMAIL_USER", "")
     gmail_password = os.getenv("GMAIL_APP_PASSWORD", "")
 
-    print("連線 Gmail IMAP...")
+    print("🔌 連線 Gmail IMAP...")
     client = connect_imap(gmail_user, gmail_password)
     try:
-        print(f"擷取最新 {args.count} 封收件匣郵件...")
+        print(f"📥 擷取最新 {args.count} 封收件匣郵件...")
         emails = fetch_latest_emails(client, args.count)
         if not emails:
-            print("找不到郵件。")
+            print("📭 找不到郵件。")
             return
 
         if args.no_archive:
-            print("清除、標記（批次）、驗證（除錯模式：不封存）...")
+            print("🔧 清除、標記（批次）、驗證（除錯模式：不封存）...")
         else:
-            print("清除、標記（批次）、封存、驗證...")
+            print("🔄 清除、標記（批次）、封存、驗證...")
         label_emails(client, emails, archive=not args.no_archive)
     finally:
         client.logout()
 
-    print(f"執行 AI 主題分析（模型：{args.model}）...")
+    print(f"🤖 執行 AI 主題分析（模型：{args.model}）...")
     email_items = build_ai_input(emails)
     themes = thematic_analysis(email_items, args.model)
 
     with open(THEMES_FILE, "w", encoding="utf-8") as f:
         json.dump(themes, f, ensure_ascii=False, indent=2)
-    print(f"主題分析已寫入 {THEMES_FILE}")
+    print(f"💾 主題分析已寫入 {THEMES_FILE}")
 
 
 if __name__ == "__main__":
