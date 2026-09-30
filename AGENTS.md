@@ -12,16 +12,19 @@ This repo is greenfield. **`SPEC.md` is the authoritative source for all project
 ## Core labeling rule (do not approximate)
 
 - Take the sender domain, split on `.`, reverse the parts, join with `/` to form nested Gmail labels.
-- Canonical example: `hko.gov.hk` -> label `hk/gov/hko`. Create missing parent/child labels via the Gmail API before assigning.
+- Canonical example: `hko.gov.hk` -> label `hk/gov/hko`. Create missing parent/child labels via IMAP `CREATE` before assigning with `X-GM-LABELS`.
 - This is the single most important correctness check for `main.py`.
 
 ## Security (hard rule)
 
-- Never commit `credentials.json`, `token.json`, `.env`, or `venv/`. `.gitignore` must exclude all of them.
-- Gmail OAuth2 `credentials.json` and `token.json` are local-only; the AI API key lives in `.env`.
+- Never commit `.env`, `credentials.json`, `token.json`, or `venv/`. `.gitignore` must exclude all of them.
+- Gmail access uses IMAP + App Password (stored in `.env` as `GMAIL_USER` / `GMAIL_APP_PASSWORD`). No OAuth2 `credentials.json` or `token.json` is used, but they remain git-ignored for safety.
+- The Gemini API key lives in `.env` as `GEMINI_API_KEY`.
 
 ## Stack & deliverables
 
 - Python, isolated with `venv`. Dependencies pinned in `requirements.txt`.
-- Entry point is `main.py` (Workflow-1): authenticate Gmail OAuth2 -> fetch N latest Inbox emails -> nested-domain-label -> AI thematic analysis written to `themes-ai.json`.
+- Gmail access: **IMAP** (`imapclient`) with a Gmail App Password — no Google Cloud Console needed.
+- AI thematic analysis: **Google Gemini** (free tier via Google AI Studio, `google-generativeai` SDK) — no OpenAI, no credit card.
+- Entry point is `main.py` (Workflow-1): IMAP connect -> fetch N latest Inbox emails -> nested-domain-label via `CREATE` + `X-GM-LABELS` -> Gemini thematic analysis written to `themes-ai.json`.
 - The AI thematic output file is named exactly `themes-ai.json`.

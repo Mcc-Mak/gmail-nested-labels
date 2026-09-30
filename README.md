@@ -1,13 +1,18 @@
 # Gmail automation: nested-domain labeling + AI thematic analysis
 
-Workflow-1 (see `SPEC.md`): authenticate to Gmail, fetch the N latest Inbox
-emails, assign nested labels derived from the reversed sender domain, then
-group the emails by theme using an AI model and write the result to
+Workflow-1 (see `SPEC.md`): connect to Gmail via IMAP, fetch the N latest
+Inbox emails, assign nested labels derived from the reversed sender domain,
+then group the emails by theme using Google Gemini and write the result to
 `themes-ai.json`.
 
 ## Prerequisites
 
 - Python 3.9+
+- A Gmail account with **2-Step Verification** enabled
+- A free **Google AI Studio** API key for Gemini
+
+> **No Google Cloud Console or credit card needed.** Gmail access uses IMAP
+> with an App Password; AI analysis uses the Gemini free tier.
 
 ## Setup
 
@@ -17,29 +22,39 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## Gmail OAuth2 credentials
+## Gmail App Password
 
-1. Go to the [Google Cloud Console](https://console.cloud.google.com/).
-2. Create (or select) a project and enable the **Gmail API**.
-3. Configure the OAuth consent screen (type: External is fine for testing).
-4. Under **APIs & Services > Credentials**, create an **OAuth client ID** of
-   type **Desktop app**.
-5. Download the JSON and save it as `credentials.json` in the repo root.
+1. Enable **2-Step Verification** on your Google account:
+   https://myaccount.google.com/security
+2. Generate an **App Password** at:
+   https://myaccount.google.com/apppasswords
+   (Select "Mail" as the app, any name for the device.)
+3. Copy the 16-character password.
 
-On first run, `main.py` opens a browser to authorize access and writes
-`token.json` (refresh token) for subsequent runs.
+## Gemini API key (free)
 
-> `credentials.json` and `token.json` are local-only and git-ignored. Never
-> commit them.
+1. Go to **Google AI Studio**: https://aistudio.google.com/apikey
+2. Click **Create API key**.
+3. Copy the key.
 
-## AI API key
+> Google AI Studio is separate from Google Cloud Console — no project, no
+> billing, no credit card required.
 
-Copy `.env.example` to `.env` and set your OpenAI API key:
+## Configure environment
 
 ```bash
 cp .env.example .env
-# edit .env
 ```
+
+Edit `.env`:
+
+```
+GMAIL_USER=you@gmail.com
+GMAIL_APP_PASSWORD=xxxx-xxxx-xxxx-xxxx
+GEMINI_API_KEY=AIza...
+```
+
+> `.env` is git-ignored. Never commit it.
 
 ## Usage
 
@@ -47,7 +62,7 @@ cp .env.example .env
 source venv/bin/activate
 python main.py               # uses EMAIL_COUNT from .env (default 10)
 python main.py -n 25         # process the 25 latest Inbox emails
-python main.py --model gpt-4o
+python main.py --model gemini-2.0-flash
 ```
 
 Output: `themes-ai.json`.
@@ -55,8 +70,9 @@ Output: `themes-ai.json`.
 ### Labeling rule
 
 The sender domain is split on `.`, reversed, and joined with `/` to form a
-nested Gmail label. Example: `hko.gov.hk` -> `hk/gov/hko`. Missing parent and
-child labels are created automatically before assignment.
+nested Gmail label. Example: `hko.gov.hk` -> `hk/gov/hko`. Missing parent
+and child labels are created automatically before assignment via IMAP
+`CREATE` + `X-GM-LABELS`.
 
 ## Dev workflow
 

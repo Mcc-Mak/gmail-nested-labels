@@ -5,6 +5,13 @@ All notable changes are listed here. Versions follow semantic versioning
 
 ## [Unreleased]
 
+## [0.0.1] - 2026-09-30
+- Replaced Gmail API (OAuth2) with IMAP + App Password: no Google Cloud
+  Console or credit card needed.
+- Replaced OpenAI with Google Gemini (free tier via Google AI Studio).
+- Updated requirements.txt, .env.example, README.md, and AGENTS.md to
+  reflect the new IMAP + Gemini approach.
+
 ## [0.0.0] - 2026-09-30
 - Initial implementation of Workflow-1: Gmail OAuth2, nested-domain labeling,
   and AI thematic analysis output to `themes-ai.json`.
