@@ -158,13 +158,15 @@ def label_emails(client, emails, archive=True):
          無法擷取網域的郵件跳過（留在收件匣）。
       2. 清除：以一次呼叫擷取所有目標 UID 的現有 X-GM-LABELS；
          對每封郵件移除 `\Inbox` 以外的所有現有標籤。
-      3. 標記 + 封存：依目標標籤分組 UID。每組：確保標籤存在
-         （CREATE），套用至所有 UID，再移除 `\Inbox`（封存）。
-         批次處理可減少伺服器往返次數（避免 Gmail IMAP 速率限制）。
-         若 archive=False 則跳過封存步驟。
-      4. 驗證：重新擷取 X-GM-LABELS 並回報每個 UID 的真實狀態。
-         封存模式下，郵件僅在 `\Inbox` 確實不存在時才算成功；
-         除錯模式下，僅檢查標籤是否已套用。
+      3. 標記：依目標標籤分組 UID。每組：確保標籤存在（CREATE），
+         套用至所有 UID。批次處理可減少伺服器往返次數。
+      4. 驗證標籤：從 INBOX 重新擷取 X-GM-LABELS，確認標籤已套用。
+      5. 封存：在 INBOX 中以 `STORE +FLAGS \Deleted` 標記後 `EXPUNGE`。
+         Gmail 的 `X-GM-LABELS` 在 INBOX 中不回報 `\Inbox`，且
+         `STORE -FLAGS \Inbox` 會被 Gmail 拒絕；`STORE \Deleted` +
+         `EXPUNGE` 是從 INBOX 移除郵件（等同 Gmail 封存）的標準方法，
+         且使用者標籤會保留在「全部郵件」中。若 archive=False 則跳過。
+      6. 驗證封存：封存後重新搜尋 INBOX，確認 UID 已不在收件匣。
     """
     # 1. 解析目標標籤。
     targets = []
@@ -189,10 +191,11 @@ def label_emails(client, emails, archive=True):
         if to_remove:
             client.remove_gmail_labels(uid, to_remove)
 
-    # 3. 依標籤分組；建立、套用、封存（以標籤為單位批次處理）。
+    # 3. 依標籤分組；建立並套用標籤（以標籤為單位批次處理）。
     by_label = {}
     for uid, label in targets:
         by_label.setdefault(label, []).append(uid)
+    labeled_uids = []
     for label_name, uids in by_label.items():
         print(f"  {label_name}：{len(uids)} 封郵件")
         try:
@@ -202,21 +205,35 @@ def label_emails(client, emails, archive=True):
             continue
         try:
             client.add_gmail_labels(uids, [label_name])
-            if archive:
-                client.remove_gmail_labels(uids, ["\\Inbox"])
+            labeled_uids.extend(uids)
         except IMAPClientError as exc:
-            print(f"    標記/封存錯誤：{exc}")
+            print(f"    標記錯誤：{exc}")
 
-    # 4. 驗證真實狀態。
+    # 4. 驗證標籤已套用（封存前，郵件仍在 INBOX）。
     after = client.get_gmail_labels(target_uids)
+    label_ok = {}
+    for uid, label in targets:
+        label_ok[uid] = label in list(after.get(uid, ()))
+
+    # 5. 封存：STORE \Deleted + EXPUNGE（從 INBOX 移除即等同 Gmail 封存）。
+    if archive and labeled_uids:
+        try:
+            client.add_flags(labeled_uids, ["\\Deleted"])
+            client.expunge(labeled_uids)
+        except IMAPClientError as exc:
+            print(f"    封存錯誤：{exc}")
+
+    # 6. 驗證封存結果。
+    if archive:
+        remaining_inbox = set(client.search("ALL"))
     ok = failed = 0
     for uid, label in targets:
-        labels = list(after.get(uid, ()))
-        has_label = label in labels
-        in_inbox = "\\Inbox" in labels
+        has_label = label_ok.get(uid, False)
         if archive:
+            in_inbox = uid in remaining_inbox
             success = has_label and not in_inbox
         else:
+            in_inbox = True
             success = has_label
         if success:
             ok += 1
@@ -224,8 +241,7 @@ def label_emails(client, emails, archive=True):
             failed += 1
             print(
                 f"  UID {uid}：驗證失敗 "
-                f"（標籤={label!r} 已套用={has_label} 在收件匣={in_inbox} "
-                f"現有={labels}）"
+                f"（標籤={label!r} 已套用={has_label} 在收件匣={in_inbox}）"
             )
     if archive:
         print(f"  完成：{ok} 封已封存，{failed} 封失敗，共 {len(targets)} 封目標。")

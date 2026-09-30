@@ -19,8 +19,8 @@
 | SR-3 | 清除 `\Inbox` 以外所有標籤 | 高 |
 | SR-4 | 依反轉網域建立扁平標籤（`-` 接合） | 高 |
 | SR-5 | 以 `CREATE` + `X-GM-LABELS` 套用標籤 | 高 |
-| SR-6 | 移除 `\Inbox` 封存（可 `--no-archive` 停用） | 高 |
-| SR-7 | 重新擷取 `X-GM-LABELS` 驗證結果 | 高 |
+| SR-6 | `STORE \Deleted` + `EXPUNGE` 封存（可 `--no-archive` 停用） | 高 |
+| SR-7 | 封存前驗證標籤、封存後驗證 UID 已移除 | 高 |
 | SR-8 | AI 主題分析寫入 `themes-ai.json` | 中 |
 | SR-9 | 無法擷取網域的郵件留在收件匣不標記 | 高 |
 | SR-10 | 處理舊 `/` 格式標籤衝突（刪除後重試 `CREATE`） | 高 |
@@ -58,7 +58,7 @@ stateDiagram-v2
     [*] --> 收件匣: 郵件送達
     收件匣 --> 清除中: 腳本擷取
     清除中 --> 已標記: 套用扁平標籤
-    已標記 --> 已封存: 移除 \\Inbox（預設）
+    已標記 --> 已封存: STORE \Deleted + EXPUNGE（預設）
     已標記 --> 收件匣: --no-archive 除錯模式
     收件匣 --> 收件匣: 無法擷取網域（不標記）
     已封存 --> [*]
@@ -76,9 +76,9 @@ flowchart TD
     E -->|無網域| G[留在收件匣不標記]
     F --> H[建立/套用扁平標籤]
     H --> I{archive?}
-    I -->|是| J[移除 \\Inbox 封存]
+    I -->|是| J[STORE \Deleted + EXPUNGE 封存]
     I -->|否 --no-archive| K[保留 \\Inbox]
-    J --> L[驗證 X-GM-LABELS]
+    J --> L[驗證標籤 + 確認 UID 已移除]
     K --> L
     L --> M[AI 主題分析]
     M --> N[寫入 themes-ai.json]

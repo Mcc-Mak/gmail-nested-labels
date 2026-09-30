@@ -13,7 +13,7 @@
 | `fetch_latest_emails()` | 擷取最新 N 封收件匣郵件（RFC822） |
 | `extract_domain()` / `domain_to_label()` | 網域擷取與扁平標籤轉換 |
 | `ensure_label()` | 以 IMAP `CREATE` 建立標籤；`ALREADYEXISTS`時刪除舊 `/` 格式標籤後重試 |
-| `label_emails()` | 核心流程：清除 -> 標記 -> 封存 -> 驗證 |
+| `label_emails()` | 核心流程：清除 -> 標記 -> 封存（STORE \Deleted + EXPUNGE） -> 驗證 |
 | `build_ai_input()` | 建構 AI 輸入資料 |
 | `thematic_analysis()` | 呼叫 `opencode run` 進行主題分析 |
 
@@ -57,14 +57,21 @@ sequenceDiagram
             I-->>M: OK
         end
         M->>I: add_gmail_labels(uids, [label_name])
-        opt archive=True（預設）
-            M->>I: remove_gmail_labels(uids, ["\\Inbox"])
-        end
     end
 
     M->>I: get_gmail_labels(target_uids)
     I-->>M: {uid: (labels,)}
-    M->>M: 驗證 has_label / not in_inbox
+    M->>M: 驗證標籤已套用（封存前）
+
+    opt archive=True（預設）
+        M->>I: add_flags(labeled_uids, ["\\Deleted"])
+        M->>I: expunge(labeled_uids)
+        I-->>M: UID 已從 INBOX 移除
+        M->>I: search("ALL")
+        I-->>M: [剩餘 UID]
+        M->>M: 驗證 UID 不在 INBOX（封存成功）
+    end
+
     M->>I: logout()
 
     M->>O: opencode run -m big-pickle（郵件資料以檔案附加）
@@ -88,9 +95,10 @@ flowchart TD
     J --> K[ensure_label: CREATE 或衝突清理]
     K --> L[add_gmail_labels]
     L --> M{archive?}
-    M -->|是| N[remove_gmail_labels \\Inbox]
+    M -->|是| N[STORE \Deleted + EXPUNGE]
     M -->|否| O[跳過封存]
-    N --> P[驗證: 重新擷取 X-GM-LABELS]
+    N --> N2[search ALL 確認 UID 已移除]
+    N2 --> P[驗證: has_label + not in_inbox]
     O --> P
     P --> Q{驗證結果}
     Q -->|標籤已套用 且 已封存| R[成功]

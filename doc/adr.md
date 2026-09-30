@@ -120,3 +120,32 @@ Console 設定、`credentials.json`、`token.json`。
 **後果**：
 - 舊 `/` 格式標籤從帳號中移除（含所有已套用該標籤的郵件）。
 - 郵件在後續執行中重新套用正確的 `-` 格式標籤。
+
+---
+
+## ADR-007：封存方法改用 STORE \Deleted + EXPUNGE
+
+**狀態**：已接受
+
+**背景**：原封存方法為 `remove_gmail_labels(uids, ["\\Inbox"])`（移除
+`\Inbox` 標籤），但此方法從 INBOX 執行時為靜默 no-op——Gmail 的
+`X-GM-LABELS` 在 INBOX 中不回報 `\Inbox`，故移除指令無目標可移除。
+調查亦確認：(1) `STORE -FLAGS \Inbox` 被 Gmail 以 `BAD Invalid Arguments`
+拒絕；(2) Gmail 各資料夼 UID 獨立（INBOX 的 UID 與「全部郵件」的 UID
+指向不同郵件），無法切換至「全部郵件」後重用 INBOX 的 UID 操作。
+
+**決策**：封存改為 `STORE +FLAGS \Deleted` + `UID EXPUNGE`（RFC 4315
+UIDPLUS），從 INBOX 直接執行。從 INBOX 移除郵件即等同 Gmail 封存，
+使用者標籤保留在「全部郵件」中。
+
+**原因**：
+- `STORE \Deleted` + `EXPUNGE` 為 IMAP 標準刪除流程，Gmail 對應
+  「移出收件匣」語意（封存），不會真正刪除郵件。
+- 無需切換資料夼，避免 Gmail per-folder UID 問題。
+- `UID EXPUNGE` 僅清除指定 UID，不影響其他郵件。
+- 使用者標籤在「全部郵件」中保留（已驗證）。
+
+**後果**：
+- 驗證邏輯改為兩階段：封存前以 `get_gmail_labels` 檢查標籤是否套用；
+  封存後以 `search("ALL")` 確認 UID 已不在 INBOX。
+- 移除 `find_all_mail_folder()` 函式（不再需要切換資料夼）。

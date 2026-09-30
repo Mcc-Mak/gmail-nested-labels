@@ -4,6 +4,21 @@
 
 ## [Unreleased]
 
+## [0.3.4] - 2026-09-30
+- 修復封存靜默失敗：`remove_gmail_labels(uids, ["\\Inbox"])` 從 INBOX
+  執行時為 no-op（Gmail 的 `X-GM-LABELS` 在 INBOX 中不回報 `\Inbox`），
+  導致郵件從未真正封存，但驗證（`"\\Inbox" in labels`）因 `\Inbox` 不
+  出現而永遠回 False，虛報「已封存」。
+- 根因調查發現 Gmail IMAP 兩個關鍵行為：(1) `X-GM-LABELS` 不含
+  `\Inbox`（INBOX 中不回報），(2) `STORE -FLAGS \Inbox` 被 Gmail 拒絕
+  （`BAD Invalid Arguments`），(3) Gmail 各資料夾 UID 獨立（INBOX UID
+  與 All Mail UID 指向不同郵件），無法跨資料夾操作。
+- 封存方法改為 `STORE +FLAGS \Deleted` + `UID EXPUNGE`：從 INBOX
+  移除郵件即等同 Gmail 封存，使用者標籤保留在「全部郵件」中。
+  驗證改為封存前檢查標籤、封存後搜尋 INBOX 確認 UID 已移除。
+- 新增 ADR-007（封存方法：STORE \Deleted + EXPUNGE），同步更新架構
+  文件（Mermaid 時序圖與流程圖）、SRS、RTM、API 文件、測試計畫、PRD。
+
 ## [0.3.3] - 2026-09-30
 - 修復 `ensure_label` 在 Gmail 帳號有舊 `/` 格式標籤時的衝突：Gmail
   將 `-` 和 `/` 視為等價，導致 `CREATE "com-github"` 在 `"com/github"`

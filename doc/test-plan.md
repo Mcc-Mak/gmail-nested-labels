@@ -13,7 +13,7 @@
 |------|------|
 | 前置條件 | FakeClient，郵件帶有 `\Inbox` + `OldLabel` |
 | 步驟 | `label_emails(client, emails, archive=False)` |
-| 預期結果 | `remove_gmail_labels` 未以 `["\\Inbox"]` 呼叫；標籤已套用；`OldLabel` 已清除；`\Inbox` 仍在 |
+| 預期結果 | `add_flags` 未以 `["\\Deleted"]` 呼叫；`expunge` 未呼叫；標籤已套用；`OldLabel` 已清除；`\Inbox` 仍在 |
 | 對應需求 | SR-6a, US-3 |
 
 ### TC-02：預設封存模式
@@ -22,7 +22,7 @@
 |------|------|
 | 前置條件 | FakeClient，郵件帶有 `\Inbox` + `OldLabel` |
 | 步驟 | `label_emails(client, emails, archive=True)` |
-| 預期結果 | `remove_gmail_labels` 以 `["\\Inbox"]` 呼叫；`\Inbox` 已移除；網域標籤已套用 |
+| 預期結果 | `add_flags` 以 `["\\Deleted"]` 呼叫；`expunge` 呼叫；UID 不在 `search("ALL")` 結果；網域標籤已套用 |
 | 對應需求 | SR-6, US-2 |
 
 ### TC-03：argparse `--no-archive` 旗標解析

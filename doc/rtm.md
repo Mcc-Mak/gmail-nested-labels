@@ -9,9 +9,9 @@
 | SR-3 | 清除 `\Inbox` 以外標籤 | US-6 | `label_emails()` 清除步驟 | `get_gmail_labels` 驗證 |
 | SR-4 | 扁平網域標籤轉換 | US-1 | `domain_to_label()` | `hko.gov.hk` -> `hk-gov-hko` |
 | SR-5 | `CREATE` + `X-GM-LABELS` 套用 | US-1 | `ensure_label()` + `add_gmail_labels()` | 重新擷取標籤驗證 |
-| SR-6 | 封存（移除 `\Inbox`） | US-2 | `label_emails(archive=True)` | `\Inbox` 不存在 |
+| SR-6 | 封存（`STORE \Deleted` + `EXPUNGE`） | US-2 | `label_emails(archive=True)` | UID 不在 INBOX 搜尋結果 |
 | SR-6a | `--no-archive` 除錯模式 | US-3 | `label_emails(archive=False)` | 標籤已套用、`\Inbox` 仍在 |
-| SR-7 | 驗證 `X-GM-LABELS` | US-2, US-3 | `label_emails()` 驗證步驟 | 逐 UID 回報 |
+| SR-7 | 驗證（封存前標籤 + 封存後 INBOX 搜尋） | US-2, US-3 | `label_emails()` 驗證步驟 | 逐 UID 回報 |
 | SR-8 | AI 主題分析 | US-4 | `thematic_analysis()` | `themes-ai.json` 產出 |
 | SR-9 | 無網域郵件留在收件匣 | US-5 | `label_emails()` 跳過邏輯 | 輸出提示訊息 |
 | SR-10 | 舊 `/` 格式標籤衝突處理 | US-1 | `ensure_label()` 衝突清理 | 標籤為 `-` 格式 |

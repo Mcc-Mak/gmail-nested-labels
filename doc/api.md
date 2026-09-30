@@ -85,6 +85,11 @@
 
 核心流程：清除 -> 標記 -> 封存 -> 驗證（批次處理）。
 
+封存方式為 `STORE +FLAGS \Deleted` + `UID EXPUNGE`（從 INBOX 移除即等同
+Gmail 封存，使用者標籤保留在「全部郵件」中）。驗證分兩階段：封存前以
+`get_gmail_labels` 檢查標籤是否套用，封存後以 `search("ALL")` 確認
+UID 已不在 INBOX。
+
 | 參數 | 型別 | 預設 | 說明 |
 |------|------|------|------|
 | `client` | `IMAPClient` | — | IMAP 客戶端 |
