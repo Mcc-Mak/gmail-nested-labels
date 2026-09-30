@@ -5,6 +5,12 @@ All notable changes are listed here. Versions follow semantic versioning
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-09-30
+- Fixed crash in `label_emails` (clear step): `get_gmail_labels` returns a
+  dict `{uid: (labels,)}`, but the code iterated the dict itself, passing
+  integer UIDs as labels into `remove_gmail_labels` -> `AttributeError`.
+  Now extracts the label tuple for the message uid.
+
 ## [0.2.0] - 2026-09-30
 - Workflow is now clear -> label -> archive: for each fetched email, remove
   every existing label except `\Inbox`, apply the flat domain label, then

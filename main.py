@@ -147,7 +147,8 @@ def label_emails(client, emails):
     for item in emails:
         uid = item["uid"]
         try:
-            current = client.get_gmail_labels(uid)
+            result = client.get_gmail_labels(uid)
+            current = list(result.get(uid, ()))
         except Exception:
             current = []
         to_remove = [lab for lab in current if lab != "\\Inbox"]
