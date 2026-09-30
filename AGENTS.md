@@ -11,8 +11,8 @@ This repo is greenfield. **`SPEC.md` is the authoritative source for all project
 
 ## Core labeling rule (do not approximate)
 
-- Take the sender domain, split on `.`, reverse the parts, join with `/` to form nested Gmail labels.
-- Canonical example: `hko.gov.hk` -> label `hk/gov/hko`. Create missing parent/child labels via IMAP `CREATE` before assigning with `X-GM-LABELS`.
+- Take the sender domain, split on `.`, reverse the parts, join with `-` to form a single flat Gmail label.
+- Canonical example: `hko.gov.hk` -> label `hk-gov-hko`. Create the label via IMAP `CREATE` before assigning with `X-GM-LABELS`. Do NOT use `/`: it triggers Gmail auto-creation of empty parent labels.
 - This is the single most important correctness check for `main.py`.
 
 ## Security (hard rule)
@@ -26,5 +26,5 @@ This repo is greenfield. **`SPEC.md` is the authoritative source for all project
 - Python, isolated with `venv`. Dependencies pinned in `requirements.txt`.
 - Gmail access: **IMAP** (`imapclient`) with a Gmail App Password — no Google Cloud Console needed.
 - AI thematic analysis: **OpenCode built-in model** (`opencode/big-pickle`) via `opencode run` subprocess — no API key, no credit card.
-- Entry point is `main.py` (Workflow-1): IMAP connect -> fetch N latest Inbox emails -> nested-domain-label via `CREATE` + `X-GM-LABELS` -> OpenCode thematic analysis written to `themes-ai.json`.
+- Entry point is `main.py` (Workflow-1): IMAP connect -> fetch N latest Inbox emails -> flat-domain-label via `CREATE` + `X-GM-LABELS` -> OpenCode thematic analysis written to `themes-ai.json`.
 - The AI thematic output file is named exactly `themes-ai.json`.

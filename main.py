@@ -7,9 +7,9 @@ analysis.
 Steps:
   1. Connect to Gmail via IMAP using an App Password.
   2. Fetch the N latest Inbox emails.
-  3. For each email, derive a nested Gmail label from the reversed sender
-     domain (e.g. hko.gov.hk -> hk/gov/hko) and assign it, creating any
-     missing parent/child labels first via IMAP CREATE.
+  3. For each email, derive a flat Gmail label from the reversed sender
+     domain (e.g. hko.gov.hk -> hk-gov-hko) and assign it, creating the
+     label first via IMAP CREATE if it does not exist.
   4. Send the subjects and bodies to the OpenCode model to group the
      emails by theme and write the result to themes-ai.json.
 """
@@ -82,30 +82,26 @@ def extract_domain(from_header):
 
 
 def domain_to_label(domain):
-    """Reverse the domain parts and join with '/'.
+    """Reverse the domain parts and join with '-'.
 
-    Canonical example: hko.gov.hk -> hk/gov/hko
+    Canonical example: hko.gov.hk -> hk-gov-hko
     """
     parts = [p for p in domain.split(".") if p]
-    return "/".join(reversed(parts))
+    return "-".join(reversed(parts))
 
 
 def ensure_label(client, label_name):
-    """Create label_name and all parent labels via IMAP CREATE.
+    """Create label_name via IMAP CREATE if it does not exist.
 
-    Gmail maps IMAP folder creation to label creation. The '/' separator
-    creates nested labels. We create each level explicitly for guaranteed
-    correctness. Errors (label already exists) are silently ignored.
+    Gmail maps IMAP folder creation to label creation. A flat label (no '/')
+    creates no parent labels. Errors (label already exists) are silently
+    ignored.
     """
-    parts = label_name.split("/")
-    full = ""
-    for i in range(len(parts)):
-        full = "/".join(parts[: i + 1])
-        try:
-            client.create_folder(full)
-            print(f"  Created label: {full}")
-        except Exception:
-            pass
+    try:
+        client.create_folder(label_name)
+        print(f"  Created label: {label_name}")
+    except Exception:
+        pass
 
 
 def get_body(msg):
@@ -136,7 +132,7 @@ def get_body(msg):
 
 
 def label_emails(client, emails):
-    """Assign reversed-domain nested labels to each email via X-GM-LABELS."""
+    """Assign reversed-domain flat labels to each email via X-GM-LABELS."""
     for item in emails:
         msg = email.message_from_bytes(item["raw"], policy=policy.default)
         from_header = msg["From"] or ""
@@ -255,7 +251,7 @@ def main():
             print("No emails found.")
             return
 
-        print("Assigning nested domain labels...")
+        print("Assigning flat domain labels...")
         label_emails(client, emails)
     finally:
         client.logout()

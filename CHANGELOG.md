@@ -5,6 +5,14 @@ All notable changes are listed here. Versions follow semantic versioning
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-09-30
+- Switched labeling from nested `/` (`hk/gov/hko`) to flat `-` (`hk-gov-hko`)
+  to avoid Gmail auto-creating empty parent labels.
+- `domain_to_label` now joins reversed domain parts with `-`; `ensure_label`
+  creates a single label (no parent loop).
+- Updated SPEC.md, AGENTS.md, README.md, and main.py to reflect the flat
+  labeling rule.
+
 ## [0.0.3] - 2026-09-30
 - Replaced Google Gemini with OpenCode built-in model (`opencode/big-pickle`)
   via `opencode run` subprocess. No API key, no credit card needed.

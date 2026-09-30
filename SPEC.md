@@ -15,8 +15,8 @@ Write a Python script that executes the following workflow:
 
 1. **Authenticate & Login:** Securely log in to a Gmail account using the Gmail API (OAuth2).
 2. **Fetch Emails:** Retrieve the N-th latest emails from the `Inbox`.
-3. **Domain-Based Nested Labeling:** Extract the sender's email domain. Split the domain, reverse it, and create/assign nested Gmail labels based on this structure.
-* *Rule:* A sender domain of `hko.gov.hk` must result in the email being assigned to the nested label `hk/gov/hko`. If these labels do not exist, the script must create them.
+3. **Domain-Based Flat Labeling:** Extract the sender's email domain. Split the domain, reverse it, and create/assign a single flat Gmail label based on this structure.
+* *Rule:* A sender domain of `hko.gov.hk` must result in the email being assigned to the flat label `hk-gov-hko`. If the label does not exist, the script must create it. Reversed parts are joined with `-` (not `/`) to avoid Gmail auto-creating empty parent labels.
 
 
 4. **AI Thematic Analysis:** Read the subjects and bodies of these N latest emails. Pass this data to an AI model (e.g., via OpenAI API or similar) to categorize and group the emails by overarching themes. Output this thematic analysis locally to a file named `themes-ai.json`.

@@ -1,7 +1,7 @@
-# Gmail automation: nested-domain labeling + AI thematic analysis
+# Gmail automation: flat-domain labeling + AI thematic analysis
 
 Workflow-1 (see `SPEC.md`): connect to Gmail via IMAP, fetch the N latest
-Inbox emails, assign nested labels derived from the reversed sender domain,
+Inbox emails, assign a flat label derived from the reversed sender domain,
 then group the emails by theme using the OpenCode built-in model and write
 the result to `themes-ai.json`.
 
@@ -60,10 +60,10 @@ Output: `themes-ai.json`.
 
 ### Labeling rule
 
-The sender domain is split on `.`, reversed, and joined with `/` to form a
-nested Gmail label. Example: `hko.gov.hk` -> `hk/gov/hko`. Missing parent
-and child labels are created automatically before assignment via IMAP
-`CREATE` + `X-GM-LABELS`.
+The sender domain is split on `.`, reversed, and joined with `-` to form a
+single flat Gmail label. Example: `hko.gov.hk` -> `hk-gov-hko`. The label is
+created if missing via IMAP `CREATE` + `X-GM-LABELS`. No `/` is used, so
+Gmail does not auto-create empty parent labels.
 
 ## Dev workflow
 
