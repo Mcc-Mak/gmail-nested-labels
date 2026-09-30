@@ -3,15 +3,15 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# Virtual environment
+# 虛擬環境
 venv/
 
-# Environment / secrets
+# 環境變數 / 密鑰
 .env
 
-# Gmail OAuth2 credentials (local-only)
+# Gmail OAuth2 憑證（僅本地使用）
 credentials.json
 token.json
 
-# AI thematic output
+# AI 主題分析輸出
 themes-ai.json

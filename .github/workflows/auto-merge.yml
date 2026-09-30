@@ -1,4 +1,4 @@
-name: Auto-merge
+name: 自動合併
 
 on:
   push:
@@ -17,33 +17,33 @@ jobs:
     name: dev-001 -> dev
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: 檢出
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Configure git
+      - name: 設定 git
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Merge dev-001 into dev
+      - name: 合併 dev-001 到 dev
         run: |
           git fetch origin dev
           git checkout -B dev origin/dev
           git merge origin/dev-001 --no-edit
           for attempt in 1 2 3; do
             if git push origin dev; then
-              echo "Pushed dev successfully."
+              echo "已成功推送 dev。"
               exit 0
             fi
-            echo "Push attempt $attempt failed; re-fetching and retrying in 5s..."
+            echo "第 $attempt 次推送失敗；重新擷取並於 5 秒後重試..."
             sleep 5
             git fetch origin dev
             git checkout -B dev origin/dev
             git merge origin/dev-001 --no-edit
           done
-          echo "ERROR: failed to push dev after 3 attempts" >&2
+          echo "錯誤：3 次嘗試後仍無法推送 dev" >&2
           exit 1
 
   merge-to-main:
@@ -51,17 +51,17 @@ jobs:
     needs: merge-to-dev
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: 檢出
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Configure git
+      - name: 設定 git
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Merge dev into main
+      - name: 合併 dev 到 main
         run: |
           git fetch origin dev main
           git checkout -B dev origin/dev
@@ -69,14 +69,14 @@ jobs:
           git merge dev --no-edit
           for attempt in 1 2 3; do
             if git push origin main; then
-              echo "Pushed main successfully."
+              echo "已成功推送 main。"
               exit 0
             fi
-            echo "Push attempt $attempt failed; re-fetching and retrying in 5s..."
+            echo "第 $attempt 次推送失敗；重新擷取並於 5 秒後重試..."
             sleep 5
             git fetch origin main
             git checkout -B main origin/main
             git merge dev --no-edit
           done
-          echo "ERROR: failed to push main after 3 attempts" >&2
+          echo "錯誤：3 次嘗試後仍無法推送 main" >&2
           exit 1

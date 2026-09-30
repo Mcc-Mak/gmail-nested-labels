@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# Standardized dev change cycle:
-#   1. Prompt for a CHANGELOG.md semantic-version entry.
-#   2. Stage all changes.
-#   3. Commit with the strict format: [{X.X.X}] {message} + detailed body.
-#   4. Push to dev-001 (triggers gateless auto-merge dev-001 -> dev -> main).
+# 標準化開發變更週期：
+#   1. 提示輸入 CHANGELOG.md 的語意化版本項目。
+#   2. 暫存所有變更。
+#   3. 以嚴格格式提交：[{X.X.X}] {message} + 詳細內文。
+#   4. 推送到 dev-001（觸發無閘門自動合併 dev-001 -> dev -> main）。
 set -euo pipefail
 
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
 if [ "$BRANCH" != "dev-001" ]; then
-  echo "ERROR: must run on dev-001 (current: $BRANCH)." >&2
+  echo "錯誤：必須在 dev-001 上執行（目前：$BRANCH）。" >&2
   exit 1
 fi
 
@@ -16,15 +16,15 @@ CHANGELOG="CHANGELOG.md"
 touch "$CHANGELOG"
 
 echo "== Changelog =="
-read -r -p "Semantic version (X.X.X): " VERSION
+read -r -p "語意化版本（X.X.X）: " VERSION
 if ! echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-  echo "ERROR: invalid version '$VERSION'. Expected major.minor.patch." >&2
+  echo "錯誤：無效的版本號 '$VERSION'。預期格式為 major.minor.patch。" >&2
   exit 1
 fi
 
-read -r -p "Changelog summary: " CHANGE_MSG
+read -r -p "Changelog 摘要: " CHANGE_MSG
 
-# Prepend the new entry.
+# 將新項目插入檔首。
 TMP=$(mktemp)
 {
   echo "## [$VERSION] - $(date +%Y-%m-%d)"
@@ -34,10 +34,10 @@ TMP=$(mktemp)
 } > "$TMP"
 mv "$TMP" "$CHANGELOG"
 
-echo "== Commit =="
+echo "== 提交 =="
 git add -A
-read -r -p "Commit subject (without version prefix): " COMMIT_SUBJECT
-echo "Detailed commit body (end with a line containing only 'END'):"
+read -r -p "提交主旨（不含版本前綴）: " COMMIT_SUBJECT
+echo "詳細提交內文（以僅含 'END' 的行結束）:"
 COMMIT_BODY=""
 while IFS= read -r line; do
   [ "$line" = "END" ] && break
@@ -50,6 +50,6 @@ else
   git commit -m "[$VERSION] $COMMIT_SUBJECT"
 fi
 
-echo "== Push =="
+echo "== 推送 =="
 git push origin dev-001
-echo "Pushed [$VERSION] $COMMIT_SUBJECT to dev-001."
+echo "已推送 [$VERSION] $COMMIT_SUBJECT 到 dev-001。"
