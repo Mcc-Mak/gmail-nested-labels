@@ -43,6 +43,15 @@
 | 預期結果 | `"hk-gov-hko"` |
 | 對應需求 | SR-4 |
 
+### TC-06：`ensure_label` 舊 `/` 格式標籤衝突清理
+
+| 項目 | 內容 |
+|------|------|
+| 前置條件 | Gmail 帳號有舊 `com/github` 標籤 |
+| 步驟 | `ensure_label(client, "com-github")` |
+| 預期結果 | `CREATE` 傳回 `ALREADYEXISTS` -> 刪除 `com/github` -> 重試 `CREATE` 成功 |
+| 對應需求 | SR-10 |
+
 ### TC-05：`py_compile` 語法檢查
 
 | 項目 | 內容 |

@@ -14,4 +14,5 @@
 | SR-7 | 驗證 `X-GM-LABELS` | US-2, US-3 | `label_emails()` 驗證步驟 | 逐 UID 回報 |
 | SR-8 | AI 主題分析 | US-4 | `thematic_analysis()` | `themes-ai.json` 產出 |
 | SR-9 | 無網域郵件留在收件匣 | US-5 | `label_emails()` 跳過邏輯 | 輸出提示訊息 |
+| SR-10 | 舊 `/` 格式標籤衝突處理 | US-1 | `ensure_label()` 衝突清理 | 標籤為 `-` 格式 |
 | FR-7 | CI/CD 自動合併 | — | `auto-merge.yml` | CI 綠燈 |

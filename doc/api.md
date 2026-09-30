@@ -56,7 +56,10 @@
 
 ## `ensure_label(client, label_name) -> None`
 
-以 IMAP `CREATE` 建立標籤（若不存在）。容忍 `ALREADYEXISTS`，其他錯誤
+以 IMAP `CREATE` 建立標籤（若不存在）。Gmail 將 `-` 和 `/` 視為等價，
+故 `CREATE "com-github"` 在 `"com/github"` 已存在時傳回 `ALREADYEXISTS`。
+此函式在偵測到此衝突時，刪除舊 `/` 格式標籤後重試 `CREATE`。若刪除
+傳回 `NONEXISTENT`，表示 `-` 格式標籤已正確存在，直接返回。其他錯誤
 重新拋出。
 
 | 參數 | 型別 | 說明 |

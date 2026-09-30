@@ -96,3 +96,27 @@ Console 設定、`credentials.json`、`token.json`。
 
 **後果**：
 - 失敗以逐 UID 回報，不再虛報成功。
+
+---
+
+## ADR-006：處理舊 `/` 格式標籤衝突
+
+**狀態**：已接受
+
+**背景**：Gmail 將 `-` 和 `/` 視為等價——當 `com/github` 已存在時，
+`CREATE "com-github"` 傳回 `ALREADYEXISTS`，且 `add_gmail_labels`
+套用舊 `com/github` 標籤而非新的 `com-github`，導致驗證失敗
+（`get_gmail_labels` 回傳 `com/github`，但目標為 `com-github`）。
+
+**決策**：`ensure_label` 在 `CREATE` 傳回 `ALREADYEXISTS` 時，
+計算 `/` 格式等價名稱（`-` 替換為 `/`），刪除舊標籤後重試 `CREATE`。
+若刪除傳回 `NONEXISTENT`，表示 `-` 格式標籤已正確存在，直接返回。
+
+**原因**：
+- Gmail 允許刪除有子標籤的父標籤，無需先刪除子標籤。
+- 確保標籤遵循 SPEC 的扁平 `-` 格式規則。
+- 衝突清理為一次性操作，後續執行不再觸發。
+
+**後果**：
+- 舊 `/` 格式標籤從帳號中移除（含所有已套用該標籤的郵件）。
+- 郵件在後續執行中重新套用正確的 `-` 格式標籤。

@@ -4,6 +4,15 @@
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-09-30
+- 修復 `ensure_label` 在 Gmail 帳號有舊 `/` 格式標籤時的衝突：Gmail
+  將 `-` 和 `/` 視為等價，導致 `CREATE "com-github"` 在 `"com/github"`
+  已存在時傳回 `ALREADYEXISTS`，且 `add_gmail_labels` 套用舊 `/` 格式
+  標籤，驗證失敗。現在 `ensure_label` 在偵測到此衝突時，刪除舊 `/`
+  格式標籤後重試建立 `-` 格式標籤。
+- 新增 ADR-006（舊 `/` 格式標籤衝突處理）、SR-10、TC-06，並同步更新
+  API 文件、架構文件（Mermaid 時序圖與流程圖）、PRD、RTM。
+
 ## [0.3.2] - 2026-09-30
 - 建立 `doc/` 目錄與 16 份文件檔案：Glossary、Project Charter、PRD、
   SRS、User Stories、Project Goals (G) & Success Criteria (SC)、

@@ -95,18 +95,32 @@ def domain_to_label(domain):
 def ensure_label(client, label_name):
     """以 IMAP CREATE 建立標籤（若不存在）。
 
-    Gmail 將 IMAP 資料夾建立對應至標籤建立。扁平標籤（不含 '/'）
-    不會建立父標籤。已存在的標籤（ALREADYEXISTS）可接受；其他錯誤
-    則重新拋出，不 silently 隱藏。
+    Gmail 將 '-' 和 '/' 視為等價——當 '/' 格式標籤已存在時，
+    CREATE "com-github" 會傳回 ALREADYEXISTS 並對應至既有的
+    "com/github"。此函式在偵測到此衝突時，刪除舊的 '/' 格式標籤
+    後重試建立 '-' 格式標籤，確保遵守 SPEC 的扁平標籤規則。
     """
     try:
         client.create_folder(label_name)
         print(f"  已建立標籤：{label_name}")
+        return
     except IMAPClientError as exc:
         msg = str(exc).lower()
-        if "alreadyexists" in msg or "already exists" in msg:
+        if "alreadyexists" not in msg and "already exists" not in msg:
+            raise
+
+    # ALREADYEXISTS：嘗試刪除舊 '/' 格式標籤後重試。
+    slash_name = label_name.replace("-", "/")
+    try:
+        client.delete_folder(slash_name)
+        print(f"  已刪除舊 '/' 格式標籤：{slash_name}")
+    except IMAPClientError as exc:
+        if "nonexistent" in str(exc).lower() or "unknown" in str(exc).lower():
             return
         raise
+
+    client.create_folder(label_name)
+    print(f"  已建立標籤：{label_name}")
 
 
 def get_body(msg):

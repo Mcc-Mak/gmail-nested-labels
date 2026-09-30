@@ -12,7 +12,7 @@
 | `connect_imap()` | 以 IMAP + 應用程式密碼連線 Gmail |
 | `fetch_latest_emails()` | 擷取最新 N 封收件匣郵件（RFC822） |
 | `extract_domain()` / `domain_to_label()` | 網域擷取與扁平標籤轉換 |
-| `ensure_label()` | 以 IMAP `CREATE` 建立標籤（容忍 `ALREADYEXISTS`） |
+| `ensure_label()` | 以 IMAP `CREATE` 建立標籤；`ALREADYEXISTS`時刪除舊 `/` 格式標籤後重試 |
 | `label_emails()` | 核心流程：清除 -> 標記 -> 封存 -> 驗證 |
 | `build_ai_input()` | 建構 AI 輸入資料 |
 | `thematic_analysis()` | 呼叫 `opencode run` 進行主題分析 |
@@ -47,7 +47,15 @@ sequenceDiagram
 
     loop 依標籤分組
         M->>I: create_folder(label_name)
-        I-->>M: OK / ALREADYEXISTS
+        alt OK
+            I-->>M: OK
+        else ALREADYEXISTS（舊 '/' 格式衝突）
+            I-->>M: ALREADYEXISTS
+            M->>I: delete_folder(slash_name)
+            I-->>M: OK
+            M->>I: create_folder(label_name)
+            I-->>M: OK
+        end
         M->>I: add_gmail_labels(uids, [label_name])
         opt archive=True（預設）
             M->>I: remove_gmail_labels(uids, ["\\Inbox"])
@@ -77,7 +85,7 @@ flowchart TD
     G --> H[逐 UID 移除非 \\Inbox 標籤]
     H --> I[依標籤分組]
     I --> J{逐標籤}
-    J --> K[ensure_label: CREATE]
+    J --> K[ensure_label: CREATE 或衝突清理]
     K --> L[add_gmail_labels]
     L --> M{archive?}
     M -->|是| N[remove_gmail_labels \\Inbox]
