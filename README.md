@@ -4,6 +4,8 @@ Workflow-1（見 `SPEC.md`）：以 IMAP 連線 Gmail，擷取最新 N 封收件
 件，依反轉寄件者網域指派扁平標籤，再以 OpenCode 內建模型將郵件依主題
 分組，結果寫入 `themes-ai.json`。
 
+> 完整文件索引請見 [TOCTREE.md](TOCTREE.md)。
+
 ## 前置需求
 
 - Python 3.9+

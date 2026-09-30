@@ -4,6 +4,26 @@
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-09-30
+- 建立 `doc/` 目錄與 16 份文件檔案：Glossary、Project Charter、PRD、
+  SRS、User Stories、Project Goals (G) & Success Criteria (SC)、
+  Architecture、ADR、API、Schema、ER、RTM、CRM、Test Plan、Quick Start、
+  Deployment Guide。
+- 建立根目錄 `TOCTREE.md` 作為文件索引。
+- `README.md` 新增指向 `TOCTREE.md` 的參照。
+- `AGENTS.md` 文件同步規則新增：`README.md` 必須包含指向
+  `TOCTREE.md` 的參照。
+- 文件中使用 Mermaid 圖表：SequenceDiagram（IMAP 互動時序）、
+  FlowChart（標記工作流程、CI/CD 流程）、StateDiagram（郵件狀態轉移）、
+  ERDiagram（實體關係圖）。
+
+## [0.3.1] - 2026-09-30
+- 擴充 AGENTS.md 文件同步規則：涵蓋 Architecture、RTM、CRM、User
+  Stories、Project Goals (G) & Success Criteria (SC) 等文件類型。
+- 新增「Mermaid 圖表規則」一節：SequenceDiagram 用於 IMAP 互動流程、
+  FlowChart 用於決策邏輯，圖表須與程式碼保持同步。
+- 修正 typo：檢檢驗 -> 檢驗。
+
 ## [0.3.0] - 2026-09-30
 - 全專案本地化為繁體中文：`.md` 文件、程式碼 docstring/註解、`print`
   輸出、CLI 說明、`commit.sh` 提示、CI 步驟名稱。協定字面值（如
