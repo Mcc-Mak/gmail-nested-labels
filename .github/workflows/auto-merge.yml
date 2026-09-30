@@ -1,0 +1,54 @@
+name: Auto-merge
+
+on:
+  push:
+    branches:
+      - dev-001
+
+permissions:
+  contents: write
+
+jobs:
+  merge-to-dev:
+    name: dev-001 -> dev
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Merge dev-001 into dev
+        run: |
+          git fetch origin dev
+          git checkout -B dev origin/dev
+          git merge origin/dev-001 --no-edit
+          git push origin dev
+
+  merge-to-main:
+    name: dev -> main
+    needs: merge-to-dev
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Merge dev into main
+        run: |
+          git fetch origin dev main
+          git checkout -B dev origin/dev
+          git checkout -B main origin/main
+          git merge dev --no-edit
+          git push origin main

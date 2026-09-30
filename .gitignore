@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+
+# Environment / secrets
+.env
+
+# Gmail OAuth2 credentials (local-only)
+credentials.json
+token.json
+
+# AI thematic output
+themes-ai.json
