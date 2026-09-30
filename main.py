@@ -7,12 +7,13 @@ analysis.
 Steps:
   1. Connect to Gmail via IMAP using an App Password.
   2. Fetch the N latest Inbox emails.
-  3. For each fetched email, first remove every existing label except
-     `\Inbox` (clean slate). Then derive a flat Gmail label from the
-     reversed sender domain (e.g. hko.gov.hk -> hk-gov-hko), create it via
-     IMAP CREATE if missing, and assign it. If a label was applied
-     successfully, remove `\Inbox` (archive). Emails with no extractable
-     domain are left in the Inbox unlabeled.
+  3. Clear all labels except `\Inbox` from the fetched emails, then group
+     them by their flat reversed-domain label (e.g. hko.gov.hk ->
+     hk-gov-hko). For each group: create the label via IMAP CREATE if
+     missing, apply it to every email, and remove `\Inbox` (archive).
+     Operations are batched per label to minimize server round-trips, and
+     the result is verified by re-fetching X-GM-LABELS. Emails with no
+     extractable domain are left in the Inbox unlabeled.
   4. Send the subjects and bodies to the OpenCode model to group the
      emails by theme and write the result to themes-ai.json.
 """
@@ -30,6 +31,7 @@ import tempfile
 
 from dotenv import load_dotenv
 from imapclient import IMAPClient
+from imapclient.exceptions import IMAPClientError
 
 IMAP_HOST = "imap.gmail.com"
 THEMES_FILE = "themes-ai.json"
@@ -97,14 +99,17 @@ def ensure_label(client, label_name):
     """Create label_name via IMAP CREATE if it does not exist.
 
     Gmail maps IMAP folder creation to label creation. A flat label (no '/')
-    creates no parent labels. Errors (label already exists) are silently
-    ignored.
+    creates no parent labels. A pre-existing label (ALREADYEXISTS) is fine;
+    any other error is re-raised so it is not silently hidden.
     """
     try:
         client.create_folder(label_name)
         print(f"  Created label: {label_name}")
-    except Exception:
-        pass
+    except IMAPClientError as exc:
+        msg = str(exc).lower()
+        if "alreadyexists" in msg or "already exists" in msg:
+            return
+        raise
 
 
 def get_body(msg):
@@ -135,40 +140,77 @@ def get_body(msg):
 
 
 def label_emails(client, emails):
-    r"""Clear, label, and archive each email.
+    r"""Clear, label, and archive emails (batched and verified).
 
-    For each email:
-      1. Remove every existing label except `\Inbox`.
-      2. Apply the flat reversed-domain label (e.g. hk-gov-hko), creating
-         it first if missing.
-      3. If labeling succeeded, remove `\Inbox` (archive). Emails with no
-         extractable domain stay in the Inbox unlabeled.
+    Pipeline:
+      1. Resolve each email's flat target label from its sender domain.
+         Emails with no extractable domain are skipped (left in Inbox).
+      2. Clear: fetch current X-GM-LABELS for all target UIDs in one call;
+         for each, remove every existing label except `\Inbox`.
+      3. Label + archive: group UIDs by target label. For each group, ensure
+         the label exists (CREATE), add it to all UIDs, then remove
+         `\Inbox` (archive) from all UIDs. Batching minimizes server
+         round-trips (avoids Gmail IMAP rate-limiting).
+      4. Verify: re-fetch X-GM-LABELS and report ground truth per UID. An
+         email counts as archived only if `\Inbox` is actually absent.
     """
+    # 1. Resolve target labels.
+    targets = []
     for item in emails:
         uid = item["uid"]
-        try:
-            result = client.get_gmail_labels(uid)
-            current = list(result.get(uid, ()))
-        except Exception:
-            current = []
-        to_remove = [lab for lab in current if lab != "\\Inbox"]
-        if to_remove:
-            client.remove_gmail_labels(uid, to_remove)
         msg = email.message_from_bytes(item["raw"], policy=policy.default)
         from_header = msg["From"] or ""
         domain = extract_domain(from_header)
         if not domain:
             print(f"  UID {uid}: no domain, left in Inbox")
             continue
-        label_name = domain_to_label(domain)
-        ensure_label(client, label_name)
+        targets.append((uid, domain_to_label(domain)))
+    if not targets:
+        return
+
+    target_uids = [uid for uid, _ in targets]
+
+    # 2. Clear all labels except \Inbox (one fetch, per-uid removals).
+    current_map = client.get_gmail_labels(target_uids)
+    for uid in target_uids:
+        to_remove = [lab for lab in current_map.get(uid, ()) if lab != "\\Inbox"]
+        if to_remove:
+            client.remove_gmail_labels(uid, to_remove)
+
+    # 3. Group by label; ensure, add, archive (batched per label).
+    by_label = {}
+    for uid, label in targets:
+        by_label.setdefault(label, []).append(uid)
+    for label_name, uids in by_label.items():
+        print(f"  {label_name}: {len(uids)} email(s)")
         try:
-            client.add_gmail_labels(uid, [label_name])
-        except Exception as exc:
-            print(f"  UID {uid}: failed to apply {label_name}: {exc}; left in Inbox")
+            ensure_label(client, label_name)
+        except IMAPClientError as exc:
+            print(f"    ERROR creating label: {exc} -- skipping")
             continue
-        client.remove_gmail_labels(uid, ["\\Inbox"])
-        print(f"  UID {uid}: labeled {label_name} and archived")
+        try:
+            client.add_gmail_labels(uids, [label_name])
+            client.remove_gmail_labels(uids, ["\\Inbox"])
+        except IMAPClientError as exc:
+            print(f"    ERROR labeling/archiving: {exc}")
+
+    # 4. Verify ground truth.
+    after = client.get_gmail_labels(target_uids)
+    archived = failed = 0
+    for uid, label in targets:
+        labels = list(after.get(uid, ()))
+        has_label = label in labels
+        in_inbox = "\\Inbox" in labels
+        if has_label and not in_inbox:
+            archived += 1
+        else:
+            failed += 1
+            print(
+                f"  UID {uid}: VERIFY FAILED "
+                f"(label={label!r} present={has_label}, in_inbox={in_inbox}, "
+                f"have={labels})"
+            )
+    print(f"  Done: {archived} archived, {failed} failed of {len(targets)} targeted.")
 
 
 def build_ai_input(emails):
@@ -277,7 +319,7 @@ def main():
             print("No emails found.")
             return
 
-        print("Clearing labels, applying flat domain labels, archiving...")
+        print("Clearing, labeling (batched), archiving, and verifying...")
         label_emails(client, emails)
     finally:
         client.logout()

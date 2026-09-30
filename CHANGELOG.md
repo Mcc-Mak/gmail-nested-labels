@@ -5,6 +5,22 @@ All notable changes are listed here. Versions follow semantic versioning
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-09-30
+- Fixed the core labeling bug: `label_emails` reported "labeled ... and
+  archived" while nothing actually happened (emails stayed in the Inbox and
+  labels were not created). Root cause was silent no-ops: `UID STORE` is a
+  no-op when the command does not take effect, and `ensure_label` swallowed
+  all `create_folder` errors (`except Exception: pass`), so failures were
+  hidden. The per-UID loop (~300 round-trips for 100 emails) also likely
+  tripped Gmail IMAP rate-limiting.
+- Rewrote `label_emails` to batch by label (one CREATE + one add-labels +
+  one remove-\Inbox per label group), fetch all current labels in one call,
+  and **verify** the result by re-fetching `X-GM-LABELS` -- an email counts
+  as archived only if `\Inbox` is actually absent. Failures are now reported
+  per-UID instead of falsely claiming success.
+- `ensure_label` no longer swallows errors: it tolerates `ALREADYEXISTS` and
+  re-raises anything else so genuine creation failures are visible.
+
 ## [0.2.2] - 2026-09-30
 - Hardened `auto-merge.yml` against intermittent `git push origin main`
   failures (HTTP 403 RPC errors seen on the 0.1.0 and 0.2.0 runs; 0.2.1
