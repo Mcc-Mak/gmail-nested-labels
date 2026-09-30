@@ -1,4 +1,4 @@
-"""Workflow-1: Gmail nested-domain labeling + AI thematic analysis.
+r"""Workflow-1: Gmail flat-domain labeling + AI thematic analysis.
 
 Uses IMAP with a Gmail App Password (no Google Cloud Console needed) and
 the OpenCode built-in model `big-pickle` (no API key needed) for thematic
@@ -7,9 +7,12 @@ analysis.
 Steps:
   1. Connect to Gmail via IMAP using an App Password.
   2. Fetch the N latest Inbox emails.
-  3. For each email, derive a flat Gmail label from the reversed sender
-     domain (e.g. hko.gov.hk -> hk-gov-hko) and assign it, creating the
-     label first via IMAP CREATE if it does not exist.
+  3. For each fetched email, first remove every existing label except
+     `\Inbox` (clean slate). Then derive a flat Gmail label from the
+     reversed sender domain (e.g. hko.gov.hk -> hk-gov-hko), create it via
+     IMAP CREATE if missing, and assign it. If a label was applied
+     successfully, remove `\Inbox` (archive). Emails with no extractable
+     domain are left in the Inbox unlabeled.
   4. Send the subjects and bodies to the OpenCode model to group the
      emails by theme and write the result to themes-ai.json.
 """
@@ -132,17 +135,39 @@ def get_body(msg):
 
 
 def label_emails(client, emails):
-    """Assign reversed-domain flat labels to each email via X-GM-LABELS."""
+    r"""Clear, label, and archive each email.
+
+    For each email:
+      1. Remove every existing label except `\Inbox`.
+      2. Apply the flat reversed-domain label (e.g. hk-gov-hko), creating
+         it first if missing.
+      3. If labeling succeeded, remove `\Inbox` (archive). Emails with no
+         extractable domain stay in the Inbox unlabeled.
+    """
     for item in emails:
+        uid = item["uid"]
+        try:
+            current = client.get_gmail_labels(uid)
+        except Exception:
+            current = []
+        to_remove = [lab for lab in current if lab != "\\Inbox"]
+        if to_remove:
+            client.remove_gmail_labels(uid, to_remove)
         msg = email.message_from_bytes(item["raw"], policy=policy.default)
         from_header = msg["From"] or ""
         domain = extract_domain(from_header)
         if not domain:
+            print(f"  UID {uid}: no domain, left in Inbox")
             continue
         label_name = domain_to_label(domain)
         ensure_label(client, label_name)
-        client.add_gmail_labels(item["uid"], [label_name])
-        print(f"  Labeled UID {item['uid']} -> {label_name}")
+        try:
+            client.add_gmail_labels(uid, [label_name])
+        except Exception as exc:
+            print(f"  UID {uid}: failed to apply {label_name}: {exc}; left in Inbox")
+            continue
+        client.remove_gmail_labels(uid, ["\\Inbox"])
+        print(f"  UID {uid}: labeled {label_name} and archived")
 
 
 def build_ai_input(emails):
@@ -223,7 +248,7 @@ def thematic_analysis(email_items, model):
 def main():
     load_dotenv()
     parser = argparse.ArgumentParser(
-        description="Gmail nested-domain labeling + AI themes."
+        description="Gmail flat-domain labeling (clear, label, archive) + AI themes."
     )
     parser.add_argument(
         "-n",
@@ -251,7 +276,7 @@ def main():
             print("No emails found.")
             return
 
-        print("Assigning flat domain labels...")
+        print("Clearing labels, applying flat domain labels, archiving...")
         label_emails(client, emails)
     finally:
         client.logout()

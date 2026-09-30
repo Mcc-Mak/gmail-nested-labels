@@ -5,6 +5,14 @@ All notable changes are listed here. Versions follow semantic versioning
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-30
+- Workflow is now clear -> label -> archive: for each fetched email, remove
+  every existing label except `\Inbox`, apply the flat domain label, then
+  remove `\Inbox` (archive) if labeling succeeded.
+- Emails with no extractable domain stay in the Inbox unlabeled.
+- Updated SPEC.md, AGENTS.md, README.md, and main.py (label_emails, docstrings,
+  argparse description) to describe the new workflow.
+
 ## [0.1.0] - 2026-09-30
 - Switched labeling from nested `/` (`hk/gov/hko`) to flat `-` (`hk-gov-hko`)
   to avoid Gmail auto-creating empty parent labels.

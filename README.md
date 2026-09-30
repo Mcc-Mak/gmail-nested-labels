@@ -60,10 +60,16 @@ Output: `themes-ai.json`.
 
 ### Labeling rule
 
+For each of the N latest Inbox emails the script: removes every existing
+label except `Inbox` (clean slate); creates (if missing) and assigns a
+single flat Gmail label derived from the reversed sender domain; then, if a
+label was applied, removes the `Inbox` label to archive the email.
+
 The sender domain is split on `.`, reversed, and joined with `-` to form a
 single flat Gmail label. Example: `hko.gov.hk` -> `hk-gov-hko`. The label is
 created if missing via IMAP `CREATE` + `X-GM-LABELS`. No `/` is used, so
-Gmail does not auto-create empty parent labels.
+Gmail does not auto-create empty parent labels. Emails with no extractable
+domain stay in the Inbox unlabeled.
 
 ## Dev workflow
 

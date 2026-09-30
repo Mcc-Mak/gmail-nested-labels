@@ -15,7 +15,7 @@ Write a Python script that executes the following workflow:
 
 1. **Authenticate & Login:** Securely log in to a Gmail account using the Gmail API (OAuth2).
 2. **Fetch Emails:** Retrieve the N-th latest emails from the `Inbox`.
-3. **Domain-Based Flat Labeling:** Extract the sender's email domain. Split the domain, reverse it, and create/assign a single flat Gmail label based on this structure.
+3. **Domain-Based Flat Labeling (clear -> label -> archive):** For each fetched email, first remove every existing label except `Inbox` (clean slate). Then extract the sender's email domain, split it, reverse it, and create/assign a single flat Gmail label based on this structure. Finally, if a label was applied successfully, remove the `Inbox` label (archive) so the email leaves the Inbox. Emails with no extractable domain stay in the Inbox unlabeled.
 * *Rule:* A sender domain of `hko.gov.hk` must result in the email being assigned to the flat label `hk-gov-hko`. If the label does not exist, the script must create it. Reversed parts are joined with `-` (not `/`) to avoid Gmail auto-creating empty parent labels.
 
 
