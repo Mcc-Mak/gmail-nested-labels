@@ -1,7 +1,8 @@
 """Workflow-1: Gmail nested-domain labeling + AI thematic analysis.
 
 Uses IMAP with a Gmail App Password (no Google Cloud Console needed) and
-Google Gemini (free tier via Google AI Studio) for thematic analysis.
+the OpenCode built-in model `big-pickle` (no API key needed) for thematic
+analysis.
 
 Steps:
   1. Connect to Gmail via IMAP using an App Password.
@@ -9,8 +10,8 @@ Steps:
   3. For each email, derive a nested Gmail label from the reversed sender
      domain (e.g. hko.gov.hk -> hk/gov/hko) and assign it, creating any
      missing parent/child labels first via IMAP CREATE.
-  4. Send the subjects and bodies to Gemini to group the emails by theme
-     and write the result to themes-ai.json.
+  4. Send the subjects and bodies to the OpenCode model to group the
+     emails by theme and write the result to themes-ai.json.
 """
 
 import argparse
@@ -20,16 +21,17 @@ import json
 import os
 import re
 import ssl
+import subprocess
 import sys
+import tempfile
 
 from dotenv import load_dotenv
 from imapclient import IMAPClient
-import google.generativeai as genai
 
 IMAP_HOST = "imap.gmail.com"
 THEMES_FILE = "themes-ai.json"
 DEFAULT_EMAIL_COUNT = 10
-DEFAULT_MODEL = "gemini-1.5-flash"
+DEFAULT_MODEL = "opencode/big-pickle"
 
 
 def connect_imap(user, app_password):
@@ -163,31 +165,63 @@ def build_ai_input(emails):
     return items
 
 
-def thematic_analysis(email_items, api_key, model_name):
-    """Use Google Gemini to group emails by theme; return parsed JSON."""
-    if not api_key:
-        sys.exit(
-            "ERROR: GEMINI_API_KEY not set. Get a free key at "
-            "https://aistudio.google.com/apikey"
+def thematic_analysis(email_items, model):
+    """Use the OpenCode built-in model to group emails by theme.
+
+    Calls `opencode run -m <model> --format json` with the email data
+    attached as a file. Returns parsed JSON.
+    """
+    prompt = (
+        "Read the attached JSON file. It contains emails with index, sender, "
+        "subject, and body fields. Group them by overarching theme. "
+        "Respond with ONLY valid JSON, no markdown, no explanation: "
+        '{"themes": [{"theme": "<name>", "description": "<short>", '
+        '"emails": [{"index": <int>, "sender": "...", "subject": "..."}]}]}. '
+        "Every input email must appear in exactly one theme."
+    )
+
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".json", delete=False, encoding="utf-8"
+    ) as f:
+        json.dump(email_items, f, ensure_ascii=False, indent=2)
+        temp_path = f.name
+
+    try:
+        result = subprocess.run(
+            [
+                "opencode", "run",
+                "-m", model,
+                "--format", "json",
+                prompt,
+                "-f", temp_path,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=120,
         )
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel(
-        model_name,
-        system_instruction=(
-            "You are an assistant that groups emails by overarching theme. "
-            "Given a JSON array of emails (each with index, sender, subject, body), "
-            "categorize them into themes. Respond with ONLY valid JSON: "
-            '{"themes": [{"theme": "<name>", "description": "<short>", '
-            '"emails": [{"index": <int>, "sender": "...", "subject": "..."}]}]}. '
-            "Every input email must appear in exactly one theme."
-        ),
-    )
-    user_content = json.dumps(email_items, ensure_ascii=False, indent=2)
-    response = model.generate_content(
-        user_content,
-        generation_config={"response_mime_type": "application/json"},
-    )
-    return json.loads(response.text)
+    finally:
+        os.unlink(temp_path)
+
+    if result.returncode != 0:
+        sys.exit(
+            f"ERROR: opencode run failed (exit {result.returncode}):\n"
+            f"{result.stderr}"
+        )
+
+    text_parts = []
+    for line in result.stdout.strip().splitlines():
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if event.get("type") == "text":
+            text_parts.append(event["part"]["text"])
+
+    full_text = "".join(text_parts).strip()
+    try:
+        return json.loads(full_text)
+    except json.JSONDecodeError:
+        sys.exit(f"ERROR: could not parse AI output as JSON:\n{full_text[:500]}")
 
 
 def main():
@@ -204,14 +238,13 @@ def main():
     )
     parser.add_argument(
         "--model",
-        default=os.getenv("GEMINI_MODEL", DEFAULT_MODEL),
-        help="Gemini model for thematic analysis (default: gemini-1.5-flash).",
+        default=os.getenv("OPENCODE_MODEL", DEFAULT_MODEL),
+        help="OpenCode model for thematic analysis (default: opencode/big-pickle).",
     )
     args = parser.parse_args()
 
     gmail_user = os.getenv("GMAIL_USER", "")
     gmail_password = os.getenv("GMAIL_APP_PASSWORD", "")
-    gemini_key = os.getenv("GEMINI_API_KEY", "")
 
     print("Connecting to Gmail IMAP...")
     client = connect_imap(gmail_user, gmail_password)
@@ -229,7 +262,7 @@ def main():
 
     print(f"Running AI thematic analysis (model: {args.model})...")
     email_items = build_ai_input(emails)
-    themes = thematic_analysis(email_items, gemini_key, args.model)
+    themes = thematic_analysis(email_items, args.model)
 
     with open(THEMES_FILE, "w", encoding="utf-8") as f:
         json.dump(themes, f, ensure_ascii=False, indent=2)

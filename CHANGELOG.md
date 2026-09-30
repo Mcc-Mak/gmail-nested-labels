@@ -5,6 +5,13 @@ All notable changes are listed here. Versions follow semantic versioning
 
 ## [Unreleased]
 
+## [0.0.3] - 2026-09-30
+- Replaced Google Gemini with OpenCode built-in model (`opencode/big-pickle`)
+  via `opencode run` subprocess. No API key, no credit card needed.
+- Removed `google-generativeai` dependency from requirements.txt.
+- Removed `GEMINI_API_KEY` from `.env.example`; added `OPENCODE_MODEL`.
+- Updated README.md and AGENTS.md accordingly.
+
 ## [0.0.2] - 2026-09-30
 - Fixed SSL error on Python 3.12+: pass `ssl.create_default_context()` to
   `IMAPClient` instead of relying on imapclient's default (which creates a

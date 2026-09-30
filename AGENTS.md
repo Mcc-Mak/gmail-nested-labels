@@ -19,12 +19,12 @@ This repo is greenfield. **`SPEC.md` is the authoritative source for all project
 
 - Never commit `.env`, `credentials.json`, `token.json`, or `venv/`. `.gitignore` must exclude all of them.
 - Gmail access uses IMAP + App Password (stored in `.env` as `GMAIL_USER` / `GMAIL_APP_PASSWORD`). No OAuth2 `credentials.json` or `token.json` is used, but they remain git-ignored for safety.
-- The Gemini API key lives in `.env` as `GEMINI_API_KEY`.
+- No AI API key is needed — thematic analysis uses the OpenCode built-in model (`big-pickle`) invoked via `opencode run`.
 
 ## Stack & deliverables
 
 - Python, isolated with `venv`. Dependencies pinned in `requirements.txt`.
 - Gmail access: **IMAP** (`imapclient`) with a Gmail App Password — no Google Cloud Console needed.
-- AI thematic analysis: **Google Gemini** (free tier via Google AI Studio, `google-generativeai` SDK) — no OpenAI, no credit card.
-- Entry point is `main.py` (Workflow-1): IMAP connect -> fetch N latest Inbox emails -> nested-domain-label via `CREATE` + `X-GM-LABELS` -> Gemini thematic analysis written to `themes-ai.json`.
+- AI thematic analysis: **OpenCode built-in model** (`opencode/big-pickle`) via `opencode run` subprocess — no API key, no credit card.
+- Entry point is `main.py` (Workflow-1): IMAP connect -> fetch N latest Inbox emails -> nested-domain-label via `CREATE` + `X-GM-LABELS` -> OpenCode thematic analysis written to `themes-ai.json`.
 - The AI thematic output file is named exactly `themes-ai.json`.

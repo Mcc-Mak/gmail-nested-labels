@@ -2,17 +2,18 @@
 
 Workflow-1 (see `SPEC.md`): connect to Gmail via IMAP, fetch the N latest
 Inbox emails, assign nested labels derived from the reversed sender domain,
-then group the emails by theme using Google Gemini and write the result to
-`themes-ai.json`.
+then group the emails by theme using the OpenCode built-in model and write
+the result to `themes-ai.json`.
 
 ## Prerequisites
 
 - Python 3.9+
 - A Gmail account with **2-Step Verification** enabled
-- A free **Google AI Studio** API key for Gemini
+- **OpenCode** CLI installed (for thematic analysis — no API key needed)
 
-> **No Google Cloud Console or credit card needed.** Gmail access uses IMAP
-> with an App Password; AI analysis uses the Gemini free tier.
+> **No Google Cloud Console, no credit card, no API keys.** Gmail access
+> uses IMAP with an App Password; AI analysis uses OpenCode's built-in free
+> model (`big-pickle`).
 
 ## Setup
 
@@ -31,15 +32,6 @@ pip install -r requirements.txt
    (Select "Mail" as the app, any name for the device.)
 3. Copy the 16-character password.
 
-## Gemini API key (free)
-
-1. Go to **Google AI Studio**: https://aistudio.google.com/apikey
-2. Click **Create API key**.
-3. Copy the key.
-
-> Google AI Studio is separate from Google Cloud Console — no project, no
-> billing, no credit card required.
-
 ## Configure environment
 
 ```bash
@@ -51,7 +43,6 @@ Edit `.env`:
 ```
 GMAIL_USER=you@gmail.com
 GMAIL_APP_PASSWORD=xxxx-xxxx-xxxx-xxxx
-GEMINI_API_KEY=AIza...
 ```
 
 > `.env` is git-ignored. Never commit it.
@@ -62,7 +53,7 @@ GEMINI_API_KEY=AIza...
 source venv/bin/activate
 python main.py               # uses EMAIL_COUNT from .env (default 10)
 python main.py -n 25         # process the 25 latest Inbox emails
-python main.py --model gemini-2.0-flash
+python main.py --model opencode/big-pickle
 ```
 
 Output: `themes-ai.json`.
