@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+## [0.3.7] - 2026-09-30
+- 修復 SonarQube S3776（CRITICAL, MAINTAINABILITY）：`label_emails`
+  認知複雜度 30（上限 15）。拆分為 6 個私有輔助函式
+  （`_resolve_targets`、`_clear_labels`、`_apply_labels`、
+  `_verify_labels`、`_archive_emails`、`_verify_and_report`），
+  `label_emails` 本身降為單純協調器。同步更新 API 文件。
+
 ## [0.3.4] - 2026-09-30
 - 修復封存靜默失敗：`remove_gmail_labels(uids, ["\\Inbox"])` 從 INBOX
   執行時為 no-op（Gmail 的 `X-GM-LABELS` 在 INBOX 中不回報 `\Inbox`），

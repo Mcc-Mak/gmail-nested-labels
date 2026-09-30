@@ -153,6 +153,92 @@ def get_body(msg):
     return ""
 
 
+def _resolve_targets(emails):
+    """從郵件清單解析 (uid, label) 目標清單。
+
+    無法擷取網域的郵件跳過（留在收件匣）。
+    """
+    targets = []
+    for item in emails:
+        uid = item["uid"]
+        msg = email.message_from_bytes(item["raw"], policy=policy.default)
+        from_header = msg["From"] or ""
+        domain = extract_domain(from_header)
+        if not domain:
+            print(f"  ⚠️ UID {uid}：無法擷取網域，留在收件匣")
+            continue
+        targets.append((uid, domain_to_label(domain)))
+    return targets
+
+
+def _clear_labels(client, target_uids):
+    """清除每封郵件 \\Inbox 以外的所有標籤（一次擷取，逐 UID 移除）。"""
+    current_map = client.get_gmail_labels(target_uids)
+    for uid in target_uids:
+        to_remove = [lab for lab in current_map.get(uid, ()) if lab != "\\Inbox"]
+        if to_remove:
+            client.remove_gmail_labels(uid, to_remove)
+
+
+def _apply_labels(client, targets):
+    """依標籤分組建立並套用標籤；回傳成功套用的 UID 清單。"""
+    by_label = {}
+    for uid, label in targets:
+        by_label.setdefault(label, []).append(uid)
+    labeled_uids = []
+    for label_name, uids in by_label.items():
+        print(f"  📧 {label_name}：{len(uids)} 封郵件")
+        try:
+            ensure_label(client, label_name)
+        except IMAPClientError as exc:
+            print(f"    ❌ 建立標籤錯誤：{exc}——跳過")
+            continue
+        try:
+            client.add_gmail_labels(uids, [label_name])
+            labeled_uids.extend(uids)
+        except IMAPClientError as exc:
+            print(f"    ❌ 標記錯誤：{exc}")
+    return labeled_uids
+
+
+def _verify_labels(client, targets):
+    """驗證標籤已套用；回傳 {uid: bool}。"""
+    after = client.get_gmail_labels([uid for uid, _ in targets])
+    return {uid: label in list(after.get(uid, ())) for uid, label in targets}
+
+
+def _archive_emails(client, labeled_uids):
+    """以 STORE \\Deleted + EXPUNGE 封存（從 INBOX 移除即等同 Gmail 封存）。"""
+    try:
+        client.add_flags(labeled_uids, ["\\Deleted"])
+        client.expunge(labeled_uids)
+    except IMAPClientError as exc:
+        print(f"    ❌ 封存錯誤：{exc}")
+
+
+def _verify_and_report(targets, label_ok, archive, remaining_inbox=None):
+    """驗證最終狀態並回報結果。"""
+    ok = failed = 0
+    for uid, label in targets:
+        has_label = label_ok.get(uid, False)
+        if archive:
+            in_inbox = uid in remaining_inbox
+            success = has_label and not in_inbox
+        else:
+            in_inbox = True
+            success = has_label
+        if success:
+            ok += 1
+        else:
+            failed += 1
+            print(
+                f"  ❌ UID {uid}：驗證失敗 "
+                f"（標籤={label!r} 已套用={has_label} 在收件匣={in_inbox}）"
+            )
+    action = "📦 已封存" if archive else "✅ 已標記"
+    print(f"  {action}：{ok} 封成功，{failed} 封失敗，共 {len(targets)} 封目標。")
+
+
 def label_emails(client, emails, archive=True):
     r"""清除、標記、封存郵件（批次處理並驗證）。
 
@@ -171,85 +257,22 @@ def label_emails(client, emails, archive=True):
          且使用者標籤會保留在「全部郵件」中。若 archive=False 則跳過。
       6. 驗證封存：封存後重新搜尋 INBOX，確認 UID 已不在收件匣。
     """
-    # 1. 解析目標標籤。
-    targets = []
-    for item in emails:
-        uid = item["uid"]
-        msg = email.message_from_bytes(item["raw"], policy=policy.default)
-        from_header = msg["From"] or ""
-        domain = extract_domain(from_header)
-        if not domain:
-            print(f"  ⚠️ UID {uid}：無法擷取網域，留在收件匣")
-            continue
-        targets.append((uid, domain_to_label(domain)))
+    targets = _resolve_targets(emails)
     if not targets:
         return
 
     target_uids = [uid for uid, _ in targets]
 
-    # 2. 清除 \Inbox 以外的所有標籤（一次擷取，逐 UID 移除）。
-    current_map = client.get_gmail_labels(target_uids)
-    for uid in target_uids:
-        to_remove = [lab for lab in current_map.get(uid, ()) if lab != "\\Inbox"]
-        if to_remove:
-            client.remove_gmail_labels(uid, to_remove)
+    _clear_labels(client, target_uids)
+    labeled_uids = _apply_labels(client, targets)
+    label_ok = _verify_labels(client, targets)
 
-    # 3. 依標籤分組；建立並套用標籤（以標籤為單位批次處理）。
-    by_label = {}
-    for uid, label in targets:
-        by_label.setdefault(label, []).append(uid)
-    labeled_uids = []
-    for label_name, uids in by_label.items():
-        print(f"  📧 {label_name}：{len(uids)} 封郵件")
-        try:
-            ensure_label(client, label_name)
-        except IMAPClientError as exc:
-            print(f"    ❌ 建立標籤錯誤：{exc}——跳過")
-            continue
-        try:
-            client.add_gmail_labels(uids, [label_name])
-            labeled_uids.extend(uids)
-        except IMAPClientError as exc:
-            print(f"    ❌ 標記錯誤：{exc}")
-
-    # 4. 驗證標籤已套用（封存前，郵件仍在 INBOX）。
-    after = client.get_gmail_labels(target_uids)
-    label_ok = {}
-    for uid, label in targets:
-        label_ok[uid] = label in list(after.get(uid, ()))
-
-    # 5. 封存：STORE \Deleted + EXPUNGE（從 INBOX 移除即等同 Gmail 封存）。
+    remaining_inbox = None
     if archive and labeled_uids:
-        try:
-            client.add_flags(labeled_uids, ["\\Deleted"])
-            client.expunge(labeled_uids)
-        except IMAPClientError as exc:
-            print(f"    ❌ 封存錯誤：{exc}")
-
-    # 6. 驗證封存結果。
-    if archive:
+        _archive_emails(client, labeled_uids)
         remaining_inbox = set(client.search("ALL"))
-    ok = failed = 0
-    for uid, label in targets:
-        has_label = label_ok.get(uid, False)
-        if archive:
-            in_inbox = uid in remaining_inbox
-            success = has_label and not in_inbox
-        else:
-            in_inbox = True
-            success = has_label
-        if success:
-            ok += 1
-        else:
-            failed += 1
-            print(
-                f"  ❌ UID {uid}：驗證失敗 "
-                f"（標籤={label!r} 已套用={has_label} 在收件匣={in_inbox}）"
-            )
-    if archive:
-        print(f"  📦 完成：{ok} 封已封存，{failed} 封失敗，共 {len(targets)} 封目標。")
-    else:
-        print(f"  ✅ 完成：{ok} 封已標記，{failed} 封失敗，共 {len(targets)} 封目標。")
+
+    _verify_and_report(targets, label_ok, archive, remaining_inbox)
 
 
 def build_ai_input(emails):

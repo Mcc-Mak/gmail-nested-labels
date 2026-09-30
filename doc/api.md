@@ -96,6 +96,17 @@ UID 已不在 INBOX。
 | `emails` | `list[dict]` | — | `fetch_latest_emails` 回傳的郵件清單 |
 | `archive` | `bool` | `True` | 是否封存（`False` = 除錯模式） |
 
+此函式為協調器，實際工作委派至以下私有輔助函式：
+
+| 輔助函式 | 職責 |
+|----------|------|
+| `_resolve_targets(emails)` | 從郵件解析 (uid, label) 目標清單 |
+| `_clear_labels(client, uids)` | 清除 \\Inbox 以外所有標籤 |
+| `_apply_labels(client, targets)` | 分組建立並套用標籤；回傳 labeled UID |
+| `_verify_labels(client, targets)` | 驗證標籤已套用；回傳 {uid: bool} |
+| `_archive_emails(client, uids)` | STORE \\Deleted + EXPUNGE 封存 |
+| `_verify_and_report(targets, ...)` | 驗證最終狀態並回報 |
+
 ---
 
 ## `build_ai_input(emails) -> list[dict]`
