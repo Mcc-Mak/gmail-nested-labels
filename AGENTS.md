@@ -14,12 +14,28 @@
 - 取寄件者網域，以 `.` 切分，反轉各部分，以 `-` 接合成單一扁平 Gmail 標籤。
 - 標準範例：`hko.gov.hk` -> 標籤 `hk-gov-hko`。在以 `X-GM-LABELS` 指派前，先以 IMAP `CREATE` 建立該標籤。切勿使用 `/`：它會觸發 Gmail 自動建立空的父標籤。
 - 每封郵件的工作流程為 **清除 -> 標記 -> 封存**：先移除 `\Inbox` 以外的所有現有標籤，再套用扁平網域標籤，然後（若有套用標籤）移除 `\Inbox` 以封存。無法擷取網域的郵件留在收件匣不標記。
-- **除錯模式**：加上 `--no-archive` 旗標可跳過「移除 `\Inbox`（封存）」步驟，僅清除並標記，郵件留在收件匣以便檢檢驗。預設行為仍為封存。
+- **除錯模式**：加上 `--no-archive` 旗標可跳過「移除 `\Inbox`（封存）」步驟，僅清除並標記，郵件留在收件匣以便檢驗。預設行為仍為封存。
 - 這是 `main.py` 最重要的正確性檢查。
 
 ## 文件同步規則（硬性規定）
 
-每次變更都必須同步更新 doc/*.md——包括 TOCTREE（TOCTREE.md 位於根目錄）、Project Charter、PRD、SRS、ADR、API、Schema、ER、Quick Start 等所有受影響的文件檔案。若變更引入新主題而 doc/ 尚無對應檔案，則新增之並更新 TOCTREE.md。沒有「太小而不需更新」的文件變更。
+每次變更都必須同步更新 `doc/` 目錄下所有受影響的文件檔案——沒有「太小而不需更新」的文件變更。若變更引入新主題而 `doc/` 尚無對應檔案，則新增之並更新 `TOCTREE.md`（位於根目錄）。應涵蓋的文件類型包括但不限於：
+
+- **目錄與索引**：`TOCTREE.md`（根目錄）、Glossary（詞彙表）
+- **需求與規格**：Project Charter（專案章程）、PRD（產品需求文件）、SRS（軟體需求規格）、User Stories（使用者故事）、Project Goals (G) & Success Criteria (SC)（專案目標與成功準則）
+- **架構與設計**：Architecture（架構文件）、ADR（架構決策記錄）、API 文件、Schema（資料結構）、ER（實體關係圖）
+- **追溯與管理**：RTM（需求追溯矩陣，Requirements Traceability Matrix）、CRM（交叉參照矩陣，Cross-Reference Matrix）
+- **測試與部署**：Test Plan（測試計畫）、Quick Start（快速入門）、Deployment Guide（部署指南）
+
+## Mermaid 圖表規則
+
+文件中應善用 Mermaid 圖表來視覺化流程與架構，尤其以下類型：
+
+- **SequenceDiagram（時序圖）**：用於 IMAP 互動流程（連線 -> 擷取 -> 清除 -> 標記 -> 封存 -> 驗證）、`opencode run` 子程序呼叫等跨元件協作場景。
+- **FlowChart（流程圖）**：用於決策邏輯（如網域擷取失敗時留在收件匣、`--no-archive` 分支）、標記工作流程等。
+- 其他 Mermaid 支援的圖類（如 `ERDiagram`、`ClassDiagram`、`StateDiagram`）亦應在對應文件中適當使用。
+
+圖表必須與程式碼保持同步：若流程變更，對應的 Mermaid 圖表必須一併更新。
 
 ## 本地化規則
 
