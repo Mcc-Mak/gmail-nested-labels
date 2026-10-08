@@ -399,6 +399,8 @@ def main():
     finally:
         client.logout()
 
+    return None
+
     print(f"🤖 執行 AI 主題分析（模型：{args.model}）...")
     email_items = build_ai_input(emails)
     themes = thematic_analysis(email_items, args.model)
